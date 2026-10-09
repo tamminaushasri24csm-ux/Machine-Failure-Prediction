@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Machine Failure Predictor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚙️</text></svg>">
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#14213d;--mute:#64708a;--line:#e3e8f0;--accent:#2f5bea;--ok:#12a26a;--warn:#e69a00;--bad:#e03a3a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1424;--card:#171f35;--ink:#e8ecf7;--mute:#93a0bd;--line:#26314f;--accent:#6c8cff;--ok:#2fd596;--warn:#f5b73b;--bad:#ff6b6b}}
+:root[data-theme="dark"]{--bg:#0e1424;--card:#171f35;--ink:#e8ecf7;--mute:#93a0bd;--line:#26314f;--accent:#6c8cff;--ok:#2fd596;--warn:#f5b73b;--bad:#ff6b6b}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:20px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:15px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.sub{color:var(--mute);margin:0}
+.badge{font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--mute);white-space:nowrap}
+.badge.live{color:var(--ok);border-color:var(--ok)}
+.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+.field{margin-bottom:16px}.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px}
+label{font-weight:600;font-size:14px}.unit{color:var(--mute);font-weight:400}
+.row input[type=number]{width:92px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;text-align:right}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;gap:8px}.seg button{flex:1;padding:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;font:inherit;font-weight:600;cursor:pointer}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg small{display:block;font-weight:400;opacity:.8;font-size:11px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.presets button{padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
+.presets button:hover{border-color:var(--accent)}
+.gauge{text-align:center}.gauge svg{width:100%;max-width:280px}
+.pct{font-size:40px;font-weight:700;margin-top:-52px;position:relative}
+.verdict{display:inline-block;margin-top:6px;padding:6px 16px;border-radius:99px;font-weight:700;color:#fff}
+.mode{margin:10px 0}.mode .top{display:flex;justify-content:space-between;font-size:13px}
+.bar{height:8px;background:var(--bg);border-radius:9px;overflow:hidden;margin-top:4px}.bar i{display:block;height:100%;border-radius:9px;transition:width .3s}
+.derived{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}.derived div{flex:1;min-width:110px;background:var(--bg);border-radius:10px;padding:8px 12px}
+.derived b{display:block;font-size:16px}.derived span{font-size:12px;color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}tr.best td{font-weight:700;color:var(--accent)}
+.scroll{overflow-x:auto}.cm{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;max-width:320px;font-size:13px;text-align:center}
+.cm div{padding:12px 6px;border-radius:8px;background:var(--bg)}.cm .h{background:none;color:var(--mute);padding:4px}
+.cm .good{background:color-mix(in srgb,var(--ok) 22%,transparent)}.cm .badc{background:color-mix(in srgb,var(--bad) 22%,transparent)}
+.note{font-size:12.5px;color:var(--mute);margin-top:12px}.full{margin-top:16px}
+#theme{cursor:pointer;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>⚙️ Machine Failure Predictor</h1>
+      <p class="sub">Predictive maintenance · AI4I 2020 dataset · Cost-Sensitive Random Forest</p>
+    </div>
+    <div style="text-align:right"><button id="theme" aria-label="Toggle theme">🌓</button><div style="margin-top:8px"><span class="badge" id="mode">Checking model…</span></div></div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Machine readings</h2>
+      <div class="presets">
+        <button data-p="normal">✅ Normal run</button>
+        <button data-p="overstrain">🔩 Overstrain</button>
+        <button data-p="heat">🔥 Poor heat dissipation</button>
+        <button data-p="power">⚡ Power failure</button>
+        <button data-p="wear">🛠 Worn tool</button>
+      </div>
+      <div class="field"><div class="row"><label>Machine quality type</label></div>
+        <div class="seg" id="type">
+          <button data-v="L">L<small>Low</small></button><button data-v="M" class="on">M<small>Medium</small></button><button data-v="H">H<small>High</small></button>
+        </div></div>
+      <div id="sliders"></div>
+    </section>
+
+    <section class="card gauge">
+      <h2>Prediction</h2>
+      <svg viewBox="0 0 200 110" aria-hidden="true">
+        <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="var(--line)" stroke-width="16" stroke-linecap="round" pathLength="100"/>
+        <path id="arc" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="var(--ok)" stroke-width="16" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100" style="transition:stroke-dasharray .4s,stroke .3s"/>
+      </svg>
+      <div class="pct" id="pct">0%</div>
+      <div class="verdict" id="verdict">—</div>
+      <div class="derived">
+        <div><b id="dTemp">—</b><span>Temp difference</span></div>
+        <div><b id="dPow">—</b><span>Power (W)</span></div>
+        <div><b id="dStrain">—</b><span>Wear × torque</span></div>
+      </div>
+      <div style="text-align:left;margin-top:20px">
+        <h2>Likely failure mechanisms</h2>
+        <div id="modes"></div>
+        <p class="note">Mechanisms use the AI4I failure definitions (TWF, HDF, PWF, OSF) to explain <i>why</i> a reading is risky.</p>
+      </div>
+    </section>
+  </div>
+
+  <section class="card full">
+    <h2>Model performance (test set, 2,000 records)</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Model</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead>
+      <tbody>
+        <tr><td>Logistic Regression</td><td>0.828</td><td>0.144</td><td>0.824</td><td>0.245</td></tr>
+        <tr><td>Decision Tree</td><td>0.948</td><td>0.374</td><td>0.809</td><td>0.512</td></tr>
+        <tr><td>Random Forest</td><td>0.985</td><td>0.932</td><td>0.603</td><td>0.732</td></tr>
+        <tr class="best"><td>Cost-Sensitive Random Forest ★</td><td>0.987</td><td>0.938</td><td>0.662</td><td>0.776</td></tr>
+      </tbody></table></div>
+    <h2 style="margin-top:22px">Confusion matrix – selected model</h2>
+    <div class="cm">
+      <div class="h"></div><div class="h">Pred: No</div><div class="h">Pred: Fail</div>
+      <div class="h">Actual: No</div><div class="good"><b>1929</b><br>correct</div><div class="badc"><b>3</b><br>false alarms</div>
+      <div class="h">Actual: Fail</div><div class="badc"><b>23</b><br>missed</div><div class="good"><b>45</b><br>caught</div>
+    </div>
+    <p class="note">The model catches 45 of 68 real failures with only 3 false alarms. Missed failures are the main weakness, so treat "Low" as "not flagged", not "guaranteed safe".</p>
+  </section>
+</div>
+
+<script>
+// ---- Input definitions (ranges taken from the AI4I 2020 dataset) ----
+const FIELDS=[
+ {k:'air',label:'Air temperature',unit:'K',min:295,max:305,step:.1,val:300},
+ {k:'process',label:'Process temperature',unit:'K',min:305,max:314,step:.1,val:310},
+ {k:'speed',label:'Rotational speed',unit:'rpm',min:1100,max:2900,step:1,val:1500},
+ {k:'torque',label:'Torque',unit:'Nm',min:3,max:80,step:.1,val:40},
+ {k:'wear',label:'Tool wear',unit:'min',min:0,max:255,step:1,val:50}
+];
+const PRESETS={
+ normal:{type:'M',air:300,process:310.2,speed:1500,torque:40,wear:50},
+ overstrain:{type:'L',air:300,process:310.5,speed:1350,torque:62,wear:210},
+ heat:{type:'M',air:302,process:309.5,speed:1300,torque:42,wear:80},
+ power:{type:'H',air:300,process:310,speed:2600,torque:68,wear:60},
+ wear:{type:'L',air:299,process:309.4,speed:1500,torque:35,wear:225}
+};
+const S={type:'M'};FIELDS.forEach(f=>S[f.k]=f.val);
+
+// ---- Build sliders ----
+const box=document.getElementById('sliders');
+FIELDS.forEach(f=>{
+  box.insertAdjacentHTML('beforeend',`<div class="field"><div class="row"><label>${f.label} <span class="unit">[${f.unit}]</span></label>
+  <input type="number" id="n_${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.val}"></div>
+  <input type="range" id="r_${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.val}"></div>`);
+  const n=document.getElementById('n_'+f.k),r=document.getElementById('r_'+f.k);
+  n.oninput=()=>{if(n.value==='')return;S[f.k]=+n.value;r.value=n.value;update()};
+  r.oninput=()=>{S[f.k]=+r.value;n.value=r.value;update()};
+});
+document.querySelectorAll('#type button').forEach(b=>b.onclick=()=>{S.type=b.dataset.v;syncType();update()});
+function syncType(){document.querySelectorAll('#type button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.type))}
+document.querySelectorAll('.presets button').forEach(b=>b.onclick=()=>{
+  Object.assign(S,PRESETS[b.dataset.p]);
+  FIELDS.forEach(f=>{document.getElementById('n_'+f.k).value=S[f.k];document.getElementById('r_'+f.k).value=S[f.k]});
+  syncType();update();
+});
+document.getElementById('theme').onclick=()=>{
+  const d=document.documentElement,dark=getComputedStyle(d).getPropertyValue('--bg').trim()==='#0e1424';
+  d.dataset.theme=dark?'light':'dark';
+};
+
+// ---- Physics-based failure-mechanism rules (AI4I 2020 definitions) ----
+const sig=x=>1/(1+Math.exp(-x));
+function analyse(x){
+  const diff=x.process-x.air, power=x.torque*x.speed*2*Math.PI/60, strain=x.wear*x.torque;
+  const thr={L:11000,M:12000,H:13000}[x.type];
+  const pwf=sig(3*Math.max(3500-power,power-9000)/1000);
+  const osf=sig(.5*(strain-thr)/thr*100);
+  const hdf=sig(2*Math.min(8.6-diff,(1380-x.speed)/60));
+  const twf=(x.wear>=200&&x.wear<=240)?.45:(x.wear>240?.25:0);
+  const modes=[
+   {n:'Tool wear failure',p:twf,d:'Tool wear in the 200–240 min replacement window'},
+   {n:'Heat dissipation failure',p:hdf,d:'Temp difference < 8.6 K with speed < 1380 rpm'},
+   {n:'Power failure',p:pwf,d:'Power outside 3,500–9,000 W'},
+   {n:'Overstrain failure',p:osf,d:`Wear × torque above ${thr.toLocaleString()} for type ${x.type}`}
+  ];
+  const overall=1-modes.reduce((a,m)=>a*(1-m.p),1)*(1-.001);
+  return{diff,power,strain,modes,overall};
+}
+
+// ---- Rendering ----
+const $=id=>document.getElementById(id);
+function color(p){return p>=.5?'var(--bad)':p>=.2?'var(--warn)':'var(--ok)'}
+function render(prob,a,live){
+  const c=color(prob);
+  $('arc').setAttribute('stroke-dasharray',`${prob*100} 100`);$('arc').setAttribute('stroke',c);
+  $('pct').textContent=(prob*100).toFixed(1)+'%';
+  const v=$('verdict');v.style.background=c;
+  v.textContent=prob>=.5?'⚠ FAILURE LIKELY':prob>=.2?'Elevated risk':'✓ No failure expected';
+  $('dTemp').textContent=a.diff.toFixed(1)+' K';$('dPow').textContent=Math.round(a.power).toLocaleString();$('dStrain').textContent=Math.round(a.strain).toLocaleString();
+  $('modes').innerHTML=a.modes.map(m=>`<div class="mode"><div class="top"><span><b>${m.n}</b></span><span>${(m.p*100).toFixed(0)}%</span></div>
+   <div class="bar"><i style="width:${m.p*100}%;background:${color(m.p)}"></i></div><div class="note" style="margin:2px 0 0">${m.d}</div></div>`).join('');
+}
+let timer,seq=0;
+function update(){
+  const a=analyse(S);
+  if(!window.__live)render(a.overall,a,false);
+  clearTimeout(timer);const my=++seq;
+  timer=setTimeout(async()=>{
+    try{
+      const ctl=new AbortController();setTimeout(()=>ctl.abort(),2500);
+      const r=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(S),signal:ctl.signal});
+      if(!r.ok)throw 0;const j=await r.json();if(my!==seq)return;
+      window.__live=true;setBadge(true);render(j.probability,a,true);
+    }catch(e){window.__live=false;setBadge(false);if(my===seq)render(a.overall,a,false)}
+  },200);
+}
+function setBadge(live){const b=$('mode');b.className='badge'+(live?' live':'');
+  b.textContent=live?'● Live: trained Random Forest':'Demo mode: rule-based estimate (run app.py for the real model)'}
+update();
+</script>
+</body>
+</html>
